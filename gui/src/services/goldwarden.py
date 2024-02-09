@@ -3,6 +3,8 @@ import json
 import os
 from pathlib import Path
 from threading import Thread
+from shutil import which
+import sys
 
 is_flatpak = os.path.exists("/.flatpak-info")
 log_directory = str(Path.home()) + "/.local/share/goldwarden"
@@ -10,6 +12,7 @@ if is_flatpak:
     log_directory = str(Path.home()) + "/.var/app/com.quexten.goldwarden/data/goldwarden"
 os.makedirs(log_directory, exist_ok=True)
 
+# detect goldwarden binary
 BINARY_PATHS = [
     "/app/bin/goldwarden",
     "/usr/bin/goldwarden",
@@ -22,8 +25,16 @@ for path in BINARY_PATHS:
     if os.path.exists(path):
         BINARY_PATH = path
         break
+
 if BINARY_PATH == None:
-    raise Exception("Could not find goldwarden binary")
+    BINARY_PATH = which('goldwarden')
+    if isinstance(BINARY_PATH,str):
+        BINARY_PATH = BINARY_PATH.strip()
+
+if BINARY_PATH == None:
+    print("goldwarden executable not found")
+    sys.exit()
+
 authenticated_connection = None
 
 def create_authenticated_connection(token):
