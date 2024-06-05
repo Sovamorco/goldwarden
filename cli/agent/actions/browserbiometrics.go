@@ -88,7 +88,7 @@ func handleGetBiometricsKey(request messages.IPCMessage, cfg *config.Config, vau
 		Key: masterKeyB64,
 	})
 	actionsLog.Info("Browser Biometrics: Sending key...")
-	notify.Notify("Goldwarden", "Unlocked Browser Extension", "", 10*time.Second, func() {})
+	notify.Notify("Goldwarden", "Unlocked Browser Extension", "", 5*time.Second, func() {})
 	return response, err
 }
 
