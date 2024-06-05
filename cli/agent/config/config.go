@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/keys-pub/go-libfido2"
 	"github.com/quexten/goldwarden/cli/agent/bitwarden/crypto"
 	"github.com/quexten/goldwarden/cli/agent/notify"
 	"github.com/quexten/goldwarden/cli/agent/pincache"
@@ -26,11 +27,17 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+type LockType string
+
 const (
 	KDFIterations     = 2
 	KDFMemory         = 2 * 1024 * 1024
 	KDFThreads        = 8
 	DefaultConfigPath = "~/.config/goldwarden/goldwarden.json"
+
+	LockTypeNone  = ""
+	LockTypePin   = "PIN"
+	LockTypeFIDO2 = "FIDO2"
 )
 
 type RuntimeConfig struct {
@@ -50,6 +57,7 @@ type RuntimeConfig struct {
 }
 
 type ConfigFile struct {
+	LockType                    LockType
 	IdentityUrl                 string
 	ApiUrl                      string
 	NotificationsUrl            string
@@ -62,7 +70,13 @@ type ConfigFile struct {
 	EncryptedUserSymmetricKey   string
 	EncryptedMasterPasswordHash string
 	EncryptedMasterKey          string
+	FIDO2                       FIDO2Config
 	RuntimeConfig               RuntimeConfig `json:"-"`
+}
+
+type FIDO2Config struct {
+	CredentialID string
+	Salt         string
 }
 
 type LoginToken struct {
@@ -116,7 +130,7 @@ func (c *Config) IsLoggedIn() bool {
 	return c.ConfigFile.EncryptedMasterPasswordHash != ""
 }
 
-func (c *Config) Unlock(password string) bool {
+func (c *Config) Unlock(password []byte) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -124,7 +138,7 @@ func (c *Config) Unlock(password string) bool {
 		return true
 	}
 
-	key := argon2.Key([]byte(password), []byte(c.ConfigFile.DeviceUUID), KDFIterations, KDFMemory, KDFThreads, 32)
+	key := argon2.Key(password, []byte(c.ConfigFile.DeviceUUID), KDFIterations, KDFMemory, KDFThreads, 32)
 	debug.FreeOSMemory()
 	keyHash := sha3.Sum256(key)
 	configKeyHash := hex.EncodeToString(keyHash[:])
@@ -135,7 +149,7 @@ func (c *Config) Unlock(password string) bool {
 	keyBuffer := NewBufferFromBytes(key, c.useMemguard)
 	c.key = &keyBuffer
 	notify.Notify("Goldwarden", "Vault Unlocked", "", 60*time.Second, func() {})
-	pincache.SetPin(c.useMemguard, []byte(password))
+	pincache.SetPin(c.useMemguard, password)
 	return true
 }
 
@@ -181,10 +195,10 @@ func (c *Config) HasPin() bool {
 	return c.ConfigFile.ConfigKeyHash != ""
 }
 
-func (c *Config) UpdatePin(password string, write bool) {
+func (c *Config) UpdatePin(password []byte, write bool) {
 	c.mu.Lock()
 
-	newKey := argon2.Key([]byte(password), []byte(c.ConfigFile.DeviceUUID), KDFIterations, KDFMemory, KDFThreads, 32)
+	newKey := argon2.Key(password, []byte(c.ConfigFile.DeviceUUID), KDFIterations, KDFMemory, KDFThreads, 32)
 	keyHash := sha3.Sum256(newKey)
 	configKeyHash := hex.EncodeToString(keyHash[:])
 	debug.FreeOSMemory()
@@ -253,7 +267,7 @@ func (c *Config) UpdatePin(password string, write bool) {
 		}
 	}
 
-	pincache.SetPin(c.useMemguard, []byte(password))
+	pincache.SetPin(c.useMemguard, password)
 }
 
 func (c *Config) GetToken() (LoginToken, error) {
@@ -568,16 +582,29 @@ func ReadConfig(rtCfg RuntimeConfig) (Config, error) {
 }
 
 func (cfg *Config) TryUnlock(vault *vault.Vault) error {
-	var pin string
+	var pin []byte
+
+	var err error
+
 	if pincache.HasPin() {
-		pinBytes, err := pincache.GetPin()
+		pin, err = pincache.GetPin()
 		if err != nil {
 			return err
 		}
-		pin = string(pinBytes)
 	} else {
-		var err error
-		pin, err = pinentry.GetPassword("Unlock Goldwarden", "Enter the vault PIN")
+		switch cfg.ConfigFile.LockType {
+		case LockTypeFIDO2:
+			pin, err = cfg.fido2Unlock()
+		case LockTypePin, LockTypeNone:
+			var pinS string
+
+			pinS, err = pinentry.GetPassword("Unlock Goldwarden", "Enter the vault PIN")
+
+			pin = []byte(pinS)
+		default:
+			err = fmt.Errorf("unknown lock type: %s", cfg.ConfigFile.LockType)
+		}
+
 		if err != nil {
 			return err
 		}
@@ -609,4 +636,61 @@ func (cfg *Config) TryUnlock(vault *vault.Vault) error {
 	}
 
 	return nil
+}
+
+func (cfg *Config) fido2Unlock() ([]byte, error) {
+	devices, err := libfido2.DeviceLocations()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(devices) == 0 {
+		return nil, errors.New("no FIDO2 devices found")
+	}
+
+	device, err := libfido2.NewDevice(devices[0].Path)
+	if err != nil {
+		return nil, err
+	}
+
+	credentialID, err := base64.StdEncoding.DecodeString(cfg.ConfigFile.FIDO2.CredentialID)
+	if err != nil {
+		return nil, err
+	}
+
+	salt, err := base64.StdEncoding.DecodeString(cfg.ConfigFile.FIDO2.Salt)
+	if err != nil {
+		return nil, err
+	}
+
+	cdh := libfido2.RandBytes(32)
+
+	cancel, err := pinentry.Prompt("Fido2", "Touch your token for assertion")
+	if err != nil {
+		return nil, err
+	}
+
+	assertion, err := device.Assertion(
+		"goldwarden",
+		cdh,
+		[][]byte{credentialID},
+		"",
+		&libfido2.AssertionOpts{
+			Extensions: []libfido2.Extension{libfido2.HMACSecretExtension},
+			HMACSalt:   salt,
+		},
+	)
+
+	log.Info("Cancelling")
+	cerr := cancel()
+	log.Info("Cancelled")
+	if cerr != nil {
+		log.Error("Error cancelling pinentry prompt: %v", err)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return assertion.HMACSecret, nil
 }

@@ -48,10 +48,28 @@ var pinStatusCmd = &cobra.Command{
 			return
 		}
 
-		switch result.(type) {
-		case messages.ActionResponse:
-			fmt.Println("Pin status: " + result.(messages.ActionResponse).Message)
-		default:
+		if response, ok := result.(messages.ActionResponse); ok {
+			fmt.Println("Pin status: " + response.Message)
+		} else {
+			fmt.Println("Wrong response type")
+		}
+	},
+}
+
+var pinFidoCmd = &cobra.Command{
+	Use:   "fido",
+	Short: "Manage the vault pin using FIDO2",
+	Long:  `Manage the vault pin using FIDO2.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		result, err := commandClient.SendToAgent(messages.UpdateVaultPINFIDORequest{})
+		if err != nil {
+			handleSendToAgentError(err)
+			return
+		}
+
+		if response, ok := result.(messages.ActionResponse); ok {
+			fmt.Println("FIDO2 pin status: " + response.Message)
+		} else {
 			fmt.Println("Wrong response type")
 		}
 	},
@@ -61,4 +79,5 @@ func init() {
 	vaultCmd.AddCommand(pinCmd)
 	pinCmd.AddCommand(setPinCmd)
 	pinCmd.AddCommand(pinStatusCmd)
+	pinCmd.AddCommand(pinFidoCmd)
 }
