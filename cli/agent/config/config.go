@@ -147,7 +147,7 @@ func (c *Config) Unlock(password []byte) bool {
 
 	keyBuffer := NewBufferFromBytes(key, c.useMemguard)
 	c.key = &keyBuffer
-	notify.Notify("Goldwarden", "Vault Unlocked", "", 60*time.Second, func() {})
+	notify.Notify("Goldwarden", "Vault Unlocked", "", 5*time.Second, func() {})
 	pincache.SetPin(c.useMemguard, password)
 	return true
 }
@@ -172,7 +172,7 @@ func (c *Config) Lock() {
 		return
 	}
 	(*c.key).Wipe()
-	notify.Notify("Goldwarden", "Vault Locked", "", 60*time.Second, func() {})
+	notify.Notify("Goldwarden", "Vault Locked", "", 5*time.Second, func() {})
 }
 
 func (c *Config) Purge() {
