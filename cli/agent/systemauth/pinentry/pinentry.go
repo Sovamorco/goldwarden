@@ -13,7 +13,7 @@ var systemAuthDisabled = false
 type Pinentry struct {
 	GetPassword func(title string, description string) (string, error)
 	GetApproval func(title string, description string) (bool, error)
-	Prompt      func(title string, description string) (func() error, error)
+	Message      func(title string, description string) (func() error, error)
 }
 
 var externalPinentry Pinentry = Pinentry{}
@@ -59,14 +59,14 @@ func GetApproval(title string, description string) (bool, error) {
 	return approval, err
 }
 
-func Prompt(title string, description string) (func() error, error) {
-	cancel, err := prompt(title, description)
+func Message(title string, description string) (func() error, error) {
+	cancel, err := message(title, description)
 	if err == nil {
 		return cancel, nil
 	}
 
-	if externalPinentry.Prompt != nil {
-		return externalPinentry.Prompt(title, description)
+	if externalPinentry.Message != nil {
+		return externalPinentry.Message(title, description)
 	}
 
 	return cancel, err

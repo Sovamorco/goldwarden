@@ -3,8 +3,12 @@
 package pinentry
 
 import (
+	"bufio"
 	"errors"
+	"io"
+	"os/exec"
 	"runtime"
+	"syscall"
 
 	"github.com/twpayne/go-pinentry"
 )
@@ -75,29 +79,67 @@ func getApproval(title string, description string) (bool, error) {
 	}
 }
 
-func prompt(title string, description string) (func() error, error) {
+func message(title string, description string) (func() error, error) {
+	p := process{}
+
 	client, err := pinentry.NewClient(
 		pinentry.WithBinaryNameFromGnuPGAgentConf(),
 		pinentry.WithGPGTTY(),
 		pinentry.WithTitle(title),
 		pinentry.WithDesc(description),
 		pinentry.WithPrompt(title),
+		pinentry.WithCancel("OK"),
+		pinentry.WithProcess(&p),
 	)
 
-	log.Info("Creating prompt |%s|%s|", title, description)
+	log.Info("Creating message |%s|%s|", title, description)
 
 	if err != nil {
 		return nil, err
 	}
 
-	go func() {
-		_, err := client.Confirm("")
-		if err!= nil {
-			log.Error("Error prompting with message: %v", err)
-		}
-	}()
+	go client.Confirm("OK")
 
-	log.Info("Created prompt |%s|%s|", title, description)
+	log.Info("Created message |%s|%s|", title, description)
 
-	return client.Close, nil
+	return p.Close, nil
+}
+
+type process struct {
+	cmd    *exec.Cmd
+	stdin  io.WriteCloser
+	stdout *bufio.Reader
+}
+
+func (p *process) Close() error {
+	err := p.cmd.Process.Signal(syscall.SIGTERM)
+	if err != nil {
+		log.Error("Error sending SIGTERM to process: %v", err)
+	}
+
+	return p.stdin.Close()
+}
+
+func (p *process) ReadLine() ([]byte, bool, error) {
+	return p.stdout.ReadLine()
+}
+
+func (p *process) Start(name string, args []string) (err error) {
+	p.cmd = exec.Command(name, args...)
+	p.stdin, err = p.cmd.StdinPipe()
+	if err != nil {
+		return
+	}
+	var stdoutPipe io.ReadCloser
+	stdoutPipe, err = p.cmd.StdoutPipe()
+	if err != nil {
+		return
+	}
+	p.stdout = bufio.NewReader(stdoutPipe)
+	err = p.cmd.Start()
+	return
+}
+
+func (p *process) Write(data []byte) (int, error) {
+	return p.stdin.Write(data)
 }

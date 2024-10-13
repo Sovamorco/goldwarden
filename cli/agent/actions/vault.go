@@ -327,7 +327,7 @@ func handleUpdateVaultPinFido(request messages.IPCMessage, cfg *config.Config, v
 	cdh := libfido2.RandBytes(32)
 	userID := libfido2.RandBytes(32)
 
-	cancel, err := pinentry.Prompt("Fido2", "Touch your token for attestation")
+	cancel, err := pinentry.Message("Fido2", "Touch your token for attestation")
 	if err != nil {
 		return messages.IPCMessage{}, err
 	}
@@ -363,7 +363,7 @@ func handleUpdateVaultPinFido(request messages.IPCMessage, cfg *config.Config, v
 
 	cdh = libfido2.RandBytes(32)
 
-	cancel, err = pinentry.Prompt("Fido2", "Touch your token for assertion")
+	cancel, err = pinentry.Message("Fido2", "Touch your token for assertion")
 	if err != nil {
 		return messages.IPCMessage{}, err
 	}

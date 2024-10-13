@@ -35,7 +35,6 @@ const (
 	KDFThreads        = 8
 	DefaultConfigPath = "~/.config/goldwarden/goldwarden.json"
 
-	LockTypeNone  = ""
 	LockTypePin   = "PIN"
 	LockTypeFIDO2 = "FIDO2"
 )
@@ -574,6 +573,10 @@ func ReadConfig(rtCfg RuntimeConfig) (Config, error) {
 			ConfigFile: config,
 		}, nil
 	}
+	if config.LockType == "" {
+		config.LockType = LockTypePin
+	}
+
 	key := NewBuffer(32, rtCfg.UseMemguard)
 	return Config{
 		key:        &key,
@@ -595,7 +598,7 @@ func (cfg *Config) TryUnlock(vault *vault.Vault) error {
 		switch cfg.ConfigFile.LockType {
 		case LockTypeFIDO2:
 			pin, err = cfg.fido2Unlock()
-		case LockTypePin, LockTypeNone:
+		case LockTypePin:
 			var pinS string
 
 			pinS, err = pinentry.GetPassword("Unlock Goldwarden", "Enter the vault PIN")
@@ -665,7 +668,7 @@ func (cfg *Config) fido2Unlock() ([]byte, error) {
 
 	cdh := libfido2.RandBytes(32)
 
-	cancel, err := pinentry.Prompt("Fido2", "Touch your token for assertion")
+	cancel, err := pinentry.Message("Fido2", "Touch your token for assertion")
 	if err != nil {
 		return nil, err
 	}
