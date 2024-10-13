@@ -24,7 +24,12 @@ func notifyDBus(title string, body string, actionName string, timeout time.Durat
 
 	notificationID++
 
-	call := obj.Call("org.freedesktop.Notifications.Notify", 0, "goldwarden", uint32(notificationID), "", title, body, actions, map[string]dbus.Variant{}, int32(60000))
+	callTimeout := int32(timeout.Milliseconds())
+	if callTimeout == 0 {
+		callTimeout = -1
+	}
+
+	call := obj.Call("org.freedesktop.Notifications.Notify", 0, "goldwarden", uint32(notificationID), "", title, body, actions, map[string]dbus.Variant{}, callTimeout)
 	if call.Err != nil {
 		log.Error("could not call dbus object: %s", call.Err.Error())
 		return err
