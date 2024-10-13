@@ -74,3 +74,30 @@ func getApproval(title string, description string) (bool, error) {
 		return true, nil
 	}
 }
+
+func prompt(title string, description string) (func() error, error) {
+	client, err := pinentry.NewClient(
+		pinentry.WithBinaryNameFromGnuPGAgentConf(),
+		pinentry.WithGPGTTY(),
+		pinentry.WithTitle(title),
+		pinentry.WithDesc(description),
+		pinentry.WithPrompt(title),
+	)
+
+	log.Info("Creating prompt |%s|%s|", title, description)
+
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		_, err := client.Confirm("")
+		if err!= nil {
+			log.Error("Error prompting with message: %v", err)
+		}
+	}()
+
+	log.Info("Created prompt |%s|%s|", title, description)
+
+	return client.Close, nil
+}

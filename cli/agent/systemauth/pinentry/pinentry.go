@@ -13,6 +13,7 @@ var systemAuthDisabled = false
 type Pinentry struct {
 	GetPassword func(title string, description string) (string, error)
 	GetApproval func(title string, description string) (bool, error)
+	Prompt      func(title string, description string) (func() error, error)
 }
 
 var externalPinentry Pinentry = Pinentry{}
@@ -25,7 +26,7 @@ func init() {
 
 func SetExternalPinentry(pinentry Pinentry) error {
 	if externalPinentry.GetPassword != nil {
-		return errors.New("External pinentry already set")
+		return errors.New("external pinentry already set")
 	}
 
 	externalPinentry = pinentry
@@ -56,4 +57,17 @@ func GetApproval(title string, description string) (bool, error) {
 	}
 
 	return approval, err
+}
+
+func Prompt(title string, description string) (func() error, error) {
+	cancel, err := prompt(title, description)
+	if err == nil {
+		return cancel, nil
+	}
+
+	if externalPinentry.Prompt != nil {
+		return externalPinentry.Prompt(title, description)
+	}
+
+	return cancel, err
 }

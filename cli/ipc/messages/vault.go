@@ -17,6 +17,9 @@ type WipeVaultRequest struct {
 type GetVaultPINRequest struct {
 }
 
+type UpdateVaultPINFIDORequest struct {
+}
+
 type VaultStatusRequest struct {
 }
 
@@ -75,6 +78,15 @@ func init() {
 		}
 		return req, nil
 	}, GetVaultPINRequest{})
+
+	registerPayloadParser(func(payload []byte) (interface{}, error) {
+		var req UpdateVaultPINFIDORequest
+		err := json.Unmarshal(payload, &req)
+		if err != nil {
+			panic("Unmarshal: " + err.Error())
+		}
+		return req, nil
+	}, UpdateVaultPINFIDORequest{})
 
 	registerPayloadParser(func(payload []byte) (interface{}, error) {
 		var req VaultStatusRequest
