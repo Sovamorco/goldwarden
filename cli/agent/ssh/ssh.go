@@ -160,9 +160,9 @@ func (vaultAgent vaultAgent) SignWithFlags(key ssh.PublicKey, data []byte, flags
 	var rand = rand.Reader
 	log.Info("Sign Request for key: %s %s accepted", ssh.FingerprintSHA256(key), sshKey.Name)
 	if isGit {
-		notify.Notify("Goldwarden", fmt.Sprintf("Git Signing Request Approved for %s", sshKey.Name), "", 10*time.Second, func() {})
+		notify.Notify("Goldwarden", fmt.Sprintf("Git Signing Request Approved for %s", sshKey.Name), "", 5*time.Second, func() {})
 	} else {
-		notify.Notify("Goldwarden", fmt.Sprintf("SSH Signing Request Approved for %s", sshKey.Name), "", 10*time.Second, func() {})
+		notify.Notify("Goldwarden", fmt.Sprintf("SSH Signing Request Approved for %s", sshKey.Name), "", 5*time.Second, func() {})
 	}
 
 	algo := ""
