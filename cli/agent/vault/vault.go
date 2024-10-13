@@ -79,11 +79,15 @@ func (vault *Vault) AddOrUpdateSecureNote(cipher models.Cipher) {
 	vault.lockMutex()
 	vault.secureNotes[cipher.ID.String()] = cipher
 
+	vaultLog.Info("Adding secure note %s", cipher.ID.String())
+
 	if vault.isSSHKey(cipher) {
 		if !slices.Contains(vault.sshKeyNoteIDs, cipher.ID.String()) {
 			vault.sshKeyNoteIDs = append(vault.sshKeyNoteIDs, cipher.ID.String())
 		}
 	} else if executableName, isEnv := vault.isEnv(cipher); isEnv {
+		vaultLog.Info("Executable name: %s", executableName)
+		vaultLog.Info("isEnv: %v", isEnv)
 		vault.envCredentials[executableName] = cipher.ID.String()
 	}
 
