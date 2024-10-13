@@ -2,8 +2,6 @@ github.com/LlamaNite/llamalog v0.2.1 h1:k9XugHmyQqJhCrogca808Jl2rrEKIWMtWyLKX+xX
 github.com/LlamaNite/llamalog v0.2.1/go.mod h1:zopgmWk8utZPfZCPa/uvQkv99Lan3pRrw/9inbIYZeo=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
-github.com/Sovamorco/go-pinentry/v3 v3.1.0 h1:+EHOhomipMAmF0VkvxuisUWD21vRWcs81GCzfEAjmuU=
-github.com/Sovamorco/go-pinentry/v3 v3.1.0/go.mod h1:Cli1vvuqWKZzM2Pm3ycHFN3+FA9oW3wDN8WfWwxQveo=
 github.com/alecthomas/assert/v2 v2.2.2 h1:Z/iVC0xZfWTaFNE6bA3z07T86hd45Xe2eLt6WVy2bbk=
 github.com/alecthomas/assert/v2 v2.2.2/go.mod h1:pXcQ2Asjp247dahGEmsZ6ru0UVwnkhktn7S0bBDLxvQ=
 github.com/alecthomas/repr v0.2.0 h1:HAzS41CIzNW5syS8Mf9UwXhNH1J9aix/BvDRf1Ml2Yk=
